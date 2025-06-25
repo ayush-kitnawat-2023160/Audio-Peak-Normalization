@@ -16,7 +16,7 @@ LDFLAGS = -lsndfile
 TARGET = audio_processor
 
 # The source file
-SRCS = main2.cpp
+SRCS = main3.cpp
 
 # Default target: builds the executable
 all: $(TARGET)
@@ -27,10 +27,16 @@ $(TARGET): $(SRCS)
 
 #Rule to execute the compiled file
 run: all
+	@rm -f log.txt
+	@rm -rf normalised_audio
+	@touch log.txt
+	@mkdir normalised_audio
 	./$(TARGET) audio normalised_audio 0.1
 
 # Rule to clean up compiled files and the executable
 clean:
+	rm -rf normalised_audio
+	rm -f log.txt
 	rm -f $(TARGET) *.o
 
 # Phony targets: ensure that 'all' and 'clean' are not actual file names

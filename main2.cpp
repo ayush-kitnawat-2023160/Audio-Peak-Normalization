@@ -48,8 +48,8 @@ public:
             log_file.close();
         }
     }
-
-    // Logs messages to the log file. Console output is reserved for main's progress.
+    
+// Logs messages to the log file. Console output is reserved for main's progress.
     void log(const string& message) {
         if (log_file.is_open()) {
             log_file << message << std::endl; // Output to log file
