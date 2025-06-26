@@ -19,9 +19,6 @@ TARGET = $(BINDIR)/$(TARGET_NAME)
 # The source file(s)
 SRCS = $(SRCDIR)/main.cpp # Expects main.cpp in the src folder
 
-
-OBJS = $(patsubst $(SRCDIR)/%.cpp,$(BINDIR)/%.o,$(SRCS)) # If you only have one .cpp, this simplifies
-
 # Default target: builds the executable
 all: $(BINDIR) $(TARGET)
 
@@ -43,8 +40,8 @@ run: all
 	# Clean up previous log and output directory for a fresh run
 	@rm -f log.txt
 	@rm -rf normalised_audio
-	@touch log.txt # Create a fresh log file
-	@mkdir -p normalised_audio # Create a fresh output directory
+	@touch log.txt 
+	@mkdir normalised_audio 
 	@echo "Running: ./$(TARGET) audio normalised_audio 0.1"
 	# Execute the program, pass arguments: input_dir output_dir target_peak
 	./$(TARGET) audio normalised_audio 0.1

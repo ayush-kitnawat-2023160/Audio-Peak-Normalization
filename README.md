@@ -82,7 +82,8 @@ This section details how to compile the multithreaded program using a `Makefile`
 1.  **Create Project Directory**: Create a main directory (e.g., `multithreaded_audio_normalizer`).
 2.  **Create Source Directory**: Inside the main directory, create a `src` subdirectory.
 3.  **Place Source File**: Save the C++ code (your multithreaded code) as `main.cpp` inside the `src/` directory (e.g., `multithreaded_audio_normalizer/src/main.cpp`).
-4.  **Place Makefile**: Save a `Makefile` that compiles this multithreaded code (see example below) as `Makefile` in the main directory (e.g., `multithreaded_audio_normalizer/Makefile`).
+4. **Create Bin Director**: Inside the main directory, create a `bin` subdirectory that will hold the executable `audio_normalised` file.
+4.  **Place Makefile**: Save a `Makefile` that compiles this multithreaded code as `Makefile` in the main directory (e.g., `multithreaded_audio_normalizer/Makefile`).
 
 5.  **Provide Input Audio Directory**: The program expects an input directory containing `.wav` files.
     * For testing with the ESC-50 dataset, place the unzipped dataset's `audio` folder into a `data/` directory within your project (e.g., `multithreaded_audio_normalizer/data/ESC-50-master/audio/`).
