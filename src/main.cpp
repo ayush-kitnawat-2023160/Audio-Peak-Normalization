@@ -17,17 +17,14 @@ using namespace std;
 pthread_mutex_t global_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t new_task = PTHREAD_COND_INITIALIZER;     
 pthread_cond_t task_done = PTHREAD_COND_INITIALIZER;      
-volatile bool stop_threads = false;                     // Flag to signal threads to terminate
-int active_task_cnt = 0;                             // Number of tasks currently in the queue
-
-// Global mutex for safe logging to the shared log file
+volatile bool stop_threads = false;                     
+int active_task_cnt = 0;                             
 pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Structure to pass task data to threads
 struct AudioTask {
     string input_filepath;
     string output_filepath;
-    string filename; // filename for logging/display
+    string filename;
     float peak_level;
 };
 
@@ -39,57 +36,53 @@ private:
     vector<float> audio_data;
     SF_INFO sf_info;
     string filename;
-    ofstream log_file; 
+    ofstream logs; 
 
 public:
-    // Constructor initializes the audio processor
+    // Constructor 
     AudioProcessor(const string& file_path, const string& log_path = "log.txt") : filename(file_path) {
-        // Initialize SF_INFO struct to all zeros to prevent issues
         memset(&sf_info, 0, sizeof(sf_info));
         
-        // Acquire global log mutex before opening/writing to log file to prevent race conditions
+        // Acquire log lock to prevent race conditions
         pthread_mutex_lock(&log_mutex);
-        log_file.open(log_path, ios::app);
-        if (!log_file.is_open()) {
+        logs.open(log_path, ios::app);
+        if (!logs.is_open()) {
             cerr << "Could not open the log file " << log_path << endl; // Output if log file fails
         } else {
-            // Write timestamp and a separator to the log file
             auto now = time(nullptr);
-            log_file << "\n========================================\n";
-            log_file << "Processing started for " << filename << ": " << ctime(&now);
-            log_file << "==========================================\n";
+            logs << "\n========================================\n";
+            logs << "Processing started for " << filename << ": " << ctime(&now);
+            logs << "==========================================\n";
         }
-        pthread_mutex_unlock(&log_mutex); // Release mutex
+        pthread_mutex_unlock(&log_mutex);
     }
 
     // Destructor ensures the log file is closed when the object is destroyed
     ~AudioProcessor() {
-        // Acquire global log mutex before closing log file
         pthread_mutex_lock(&log_mutex);
-        if (log_file.is_open()) {
+        if (logs.is_open()) {
             auto now = time(nullptr);
-            log_file << "\n========================================\n";
-            log_file << "Processing Ended for " << filename << ": " << ctime(&now);
-            log_file << "\n========================================\n";
-            log_file.close();
+            logs << "\n========================================\n";
+            logs << "Processing Ended for " << filename << ": " << ctime(&now);
+            logs << "\n========================================\n";
+            logs.close();
         }
-        pthread_mutex_unlock(&log_mutex); // Release mutex
+        pthread_mutex_unlock(&log_mutex);
     }
     
-    // Logs messages to the log file.
+
     void log(const string& message) {
-        // Acquire global log mutex before writing to the log file
+
         pthread_mutex_lock(&log_mutex);
-        if (log_file.is_open()) {
-            log_file << message << endl;
-            log_file.flush(); // Ensure write to file
+        if (logs.is_open()) {
+            logs << message << endl;
+            logs.flush(); 
         }
-        pthread_mutex_unlock(&log_mutex); // Release mutex
+        pthread_mutex_unlock(&log_mutex); 
     }
 
     // Loads audio data from the specified file
     bool loadAudio() {
-        // Open the audio file for reading
         SNDFILE* infile = sf_open(filename.c_str(), SFM_READ, &sf_info);
         if (!infile) {
             log("Error: Cannot open file " + filename);
@@ -106,13 +99,10 @@ public:
         if (read_count != sf_info.frames) {
             log("Warning: Read " + to_string(read_count) + " frames, expected " + to_string(sf_info.frames));
         }
-
-        // Close the audio file
         sf_close(infile);
         return true;
     }
 
-    // Normalizes the audio data to the target peak value(default 1.0f)
     void normalizePeak(float target_peak = 1.0f) {
         if (audio_data.empty()) {
             log("Error: No audio data loaded, cannot normalize.");
@@ -167,17 +157,16 @@ public:
         log("Max value: + " + to_string(max_val));
         log("Peak magnitude: " + to_string(peak));
         log("RMS: " + to_string(rms));
-        // Avoid division by zero
+        // Avoiding division by zero
         log("Peak-to-RMS ratio: " + to_string(rms > 0 ? peak / rms : 0.0f));
     }
 
-    // Saves the processed audio data to a new file
+
     bool saveAudio(const string& output_filename) {
         SF_INFO output_info = sf_info; 
-        // Set output format to WAV and float.
         output_info.format = SF_FORMAT_WAV | SF_FORMAT_FLOAT;
 
-        // Open the output file for writing
+
         SNDFILE* outfile = sf_open(output_filename.c_str(), SFM_WRITE, &output_info);
         if (!outfile) {
             log("Error: Cannot create output file " + output_filename);
@@ -185,46 +174,43 @@ public:
             return false;
         }
 
-        // Write the audio data to the file
         sf_count_t written = sf_writef_float(outfile, audio_data.data(), sf_info.frames);
         if (written != sf_info.frames) {
             log("Warning: Wrote " + to_string(written) + " frames, expected " + to_string(sf_info.frames));
         }
 
-        // Close the output file
         sf_close(outfile);
         log("Saved to: " + output_filename);
         return true;
     }
 };
 
-// Helper function to check if a file has an audio extension
 bool isAudioFile(const string& filename) {
     string lower_filename = filename;
     transform(lower_filename.begin(), lower_filename.end(), lower_filename.begin(), ::tolower);
     return lower_filename.rfind(".wav") != string::npos;
 }
 
-// Worker thread function
+//thread function
 void* thread_function(void* arg) {
     while (true) {
         AudioTask task;
-        pthread_mutex_lock(&global_queue_mutex); // Acquire lock for queue access
+        pthread_mutex_lock(&global_queue_mutex); 
 
-        // Wait if the queue is empty AND threads should not stop yet
+
         while (task_queue.empty() && !stop_threads) {
             pthread_cond_wait(&new_task, &global_queue_mutex);
         }
 
-        // Check if threads should stop and the queue is empty (all tasks processed/distributed)
+
         if (stop_threads && task_queue.empty()) {
             pthread_mutex_unlock(&global_queue_mutex);
-            break; // Exit thread
+            break;
         }
 
         task = task_queue.front();
         task_queue.pop();
-        pthread_mutex_unlock(&global_queue_mutex); // Release lock
+        pthread_mutex_unlock(&global_queue_mutex); /
 
 
         AudioProcessor processor(task.input_filepath, "log.txt"); 
@@ -248,7 +234,6 @@ void* thread_function(void* arg) {
             pthread_mutex_unlock(&log_mutex);
         }
 
-        // Decrement active task count and signal if all tasks are done
         pthread_mutex_lock(&global_queue_mutex);
         active_task_cnt--;
         if (active_task_cnt == 0 && task_queue.empty()) {
@@ -285,7 +270,6 @@ int main(int argc, char* argv[]) {
     DIR *dir;
     struct dirent *ent;
     
-    // Populate the task queue
     if ((dir = opendir(input_dir_path.c_str())) != nullptr) {
         while ((ent = readdir(dir)) != nullptr) {
             string filename = ent->d_name;
@@ -294,13 +278,13 @@ int main(int argc, char* argv[]) {
             }
 
             string full_input_path = input_dir_path + "/" + filename;
-            string full_output_path = output_dir_path + "/normalised_" + filename; // Prefix output files
+            string full_output_path = output_dir_path + "/normalised_" + filename; 
 
             struct stat file_sb;
             if (stat(full_input_path.c_str(), &file_sb) == 0 && S_ISREG(file_sb.st_mode) && isAudioFile(filename)) {
-                pthread_mutex_lock(&global_queue_mutex); // Protect queue access while adding tasks
+                pthread_mutex_lock(&global_queue_mutex); 
                 task_queue.push({full_input_path, full_output_path, filename, peak_level});
-                active_task_cnt++; // Increment count of tasks to process
+                active_task_cnt++; 
                 pthread_mutex_unlock(&global_queue_mutex);
             }
         }
@@ -316,7 +300,6 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // Create worker threads
     for (int i = 0; i < num_threads; ++i) {
         if (pthread_create(&threads[i], NULL, thread_function, NULL) != 0) {
             cerr << "Error: Could not create thread " << i << endl;
@@ -324,29 +307,24 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Signal worker threads that tasks are available
-    pthread_cond_broadcast(&new_task); // Wake up all waiting workers
 
-    // Wait for all tasks to be completed
+    pthread_cond_broadcast(&new_task);
     pthread_mutex_lock(&global_queue_mutex);
-    // Wait until active_task_cnt drops to 0 
+
     while (active_task_cnt > 0) { 
         pthread_cond_wait(&task_done, &global_queue_mutex);
     }
     pthread_mutex_unlock(&global_queue_mutex);
 
-    // Signal worker threads to stop and join them
     pthread_mutex_lock(&global_queue_mutex);
     stop_threads = true;
-    pthread_cond_broadcast(&new_task); // Wake up any threads still waiting for tasks
+    pthread_cond_broadcast(&new_task); 
     pthread_mutex_unlock(&global_queue_mutex);
 
-    // Join all threads to ensure they complete execution
     for (int i = 0; i < num_threads; ++i) {
         pthread_join(threads[i], NULL);
     }
 
-    // Destroy mutexes and condition variables to release resources
     pthread_mutex_destroy(&global_queue_mutex);
     pthread_cond_destroy(&new_task);
     pthread_cond_destroy(&task_done);
