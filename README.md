@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the provided C++ audio proces
 
 ## 1. Introduction
 
-This C++ program is designed to automate the process of normalizing audio files (specifically `.wav` files) to a target peak level. It utilizes a thread pool to process multiple audio files concurrently, significantly speeding up the normalization of large batches of files from the [ESC-50: Environmental Sound Dataset](https://github.com/karolpiczak/ESC-50-master) or similar collections. The application also generates a detailed log of its operations to a `log.txt` file.
+This C++ program is designed to automate the process of normalizing audio files (specifically `.wav` files) to a target peak level. It utilizes a thread pool to process multiple audio files concurrently, significantly speeding up the normalization of large batches of files from the *ESC-50: Environmental Sound Dataset* or similar collections. The application also generates a detailed log of its operations to a `log.txt` file.
 
 ## 2. Key Components and Functionality
 
